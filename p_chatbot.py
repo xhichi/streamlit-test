@@ -18,18 +18,29 @@ def get_dataset():
     df['embedding']=df['embedding'].apply(json.loads)
     return df
 
-def check_usage_of_cpu_and_memory():
+def get_hw_idle_info():
+    rst = dict()
     
-    pid = os.getpid()
-    py  = psutil.Process(pid)
+    cp = psutil.cpu_times_percent(interval=None, percpu=False)
+    cp_item = dict()
+    cp_item['free'] = psutil.cpu_count(logical=False) * (cp.idle/100)
+    cp_item['idle'] = cp.idle
+    cp_item['desc'] = f"Idle CPU: {cp_item['free']:.2f} core ({cp_item['idle']}%)"
+    print(cp_item['desc'])
+
+    vm = psutil.virtual_memory()
+    vm_item = dict()
+    vm_item['free'] = vm.available//(1024*1024)
+    vm_item['idle'] = vm.available/vm.total*100
+    vm_item['desc'] = f"Idle Memory: {vm_item['free']:,}MB ({vm_item['idle']:.1f}%)"
+    print(vm_item['desc'])
     
-    cpu_usage   = os.popen("ps aux | grep " + str(pid) + " | grep -v grep | awk '{print $3}'").read()
-    cpu_usage   = cpu_usage.replace("\n","")
-    
-    memory_usage  = round(py.memory_info()[0] /2.**30, 2)
-    
-    print("cpu usage\t:", cpu_usage, "%")
-    print("memory usage\t:", memory_usage, "%")
+    du = psutil.disk_usage(path='/')
+    du_item = dict()
+    du_item['free'] = du.free//(1024*1024)
+    du_item['idle'] = du.free/du.total*100
+    du_item['desc'] = f"Idle Disk: {du_item['free']:,}MB ({du_item['idle']:.1f}%)"
+    print(du_item['desc'])
 
 model=cached_model()
 df=get_dataset()
@@ -53,7 +64,7 @@ if submitted and user_input:
     answer=df.loc[df['similarity'].idxmax()]
     st.session_state.past.append(user_input)
     st.session_state.generated.append(answer['챗봇'])
-    check_usage_of_cpu_and_memory()
+    get_hw_idle_info()
 
 for i in range(len(st.session_state['past'])):
     message(st.session_state['past'][i], is_user=True, key=str(i)+'_user')
